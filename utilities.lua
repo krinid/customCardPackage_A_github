@@ -60,6 +60,81 @@ function createEvent(m, p, h);
 	return t;
 end
 
+function dateIsEarlier(date1, date2)
+	local list = getDateIndexList();
+	for _, v in pairs(list) do
+		if v == "MiliSeconds" then return false; end
+		if date1[v] ~= date2[v] then
+			if date1[v] < date2[v] then
+				return true;
+			else
+				return false;
+			end
+		end
+	end
+	return false;
+end
+
+function getDateIndexList() return {"Year", "Month", "Day", "Hours", "Minutes", "Seconds", "MiliSeconds"}; end
+
+function getDateRestraints() return {99999999, 12, 30, 24, 60, 60, 1000} end;
+
+function dateToTable(s)
+	local list = getDateIndexList();
+	local r = {};
+	local i = 1;
+	local buffer = "";
+	local index = 1;
+	while i <= string.len(s) do
+		local c = string.sub(s, i, i);
+		if c == "-" or c == " " or c == ":" then
+			r[list[index]] = tonumber(buffer);
+			buffer = "";
+			index = index + 1;
+		else
+			buffer = buffer .. c;
+		end
+		i = i + 1;
+	end
+	r[list[index]] = tonumber(buffer);
+	return r;
+end
+
+function tableToDate(t)
+	return t.Year .. "-" .. addZeros("Month", t.Month) .. "-" .. addZeros("Day", t.Day) .. " " .. addZeros("Hours", t.Hours) .. ":" .. addZeros("Minutes", t.Minutes) .. ":" .. addZeros("Seconds", t.Seconds) .. ":" .. addZeros("MiliSeconds", t.MiliSeconds);
+end
+
+function addTime(t, field, i)
+	local dateIndex = getDateIndexList();
+	local restraint = getDateRestraints()[getTableKey(dateIndex, field)];
+	t[field] = t[field] + i;
+	if t[field] > restraint then
+		t[field] = t[field] - restraint;
+		addTime(t, dateIndex[getTableKey(dateIndex, field) - 1], 1);
+	end
+	return t;
+end
+
+function getTableKey(t, value)
+	for i, v in pairs(t) do
+		if value == v then return i; end
+	end
+end
+
+function addZeros(field, i)
+	if field == "MiliSeconds" then
+		if i < 10 then
+			return "00" .. i;
+		elseif i < 100 then
+			return "0" .. i;
+		end
+	else
+		if i < 10 then
+			return "0" .. i;
+		end
+	end
+	return i;
+end
 --- END of Dutch's functions
 
 --- START of dabo's functions
@@ -205,7 +280,7 @@ function printObjectDetails(object, strObjectName, strLocationHeader)
 			for key, value in pairs(object.writableKeys) do
 				local propertyValue = object[value]
 				if type(propertyValue) == "table" then
-					print("  [writablekeys_table] key#==" .. key .. ":: key==" .. tostring(value) .. ":: value==" .. tableToString(propertyValue))
+					print("  [writablekeys_table] key#==" .. key .. ":: key==" .. tostring(value) .. ":: value==" .. tableToString(propertyValue)) -- *** this is the last line of output that successfully executes
 				else
 					print("  [writablekeys_value] key#==" .. key .. ":: key==" .. tostring(value) .. ":: value==" .. tostring(propertyValue))
 				end
@@ -230,64 +305,6 @@ function printObjectDetails(object, strObjectName, strLocationHeader)
 	end
 end
 
---[[function printObjectDetails_ (object, strObjectName, strLocationHeader) --2nd & 3rd params are optional
-	strObjectName = strObjectName or ""; --assign default blank value if not provided; 
-	strLocationHeader = strLocationHeader or ""; --assign default blank value if not provided; 
-	print ("["..strLocationHeader.."] object="..strObjectName.."::");
-	print("[proactive display attempt] value=="..tostring(object));
-	if (object==nil) then
-	  print ("[invalid object] object==nil");
-	  return;
-	elseif (object=={}) then
-	  print ("[invalid object] object=={}");
-	  return;
-	end
-	if type(object)=="table" then
-		if object.readableKeys then --check if readableKeys exists, if not don't loop on that property (else it will throw an error)
-			for key, value in pairs(object.readableKeys) do
-				--print("[R]**key=="..key.."::value=="..value.."::tostring(value)=="..tostring(value).."::");
-
-				-- Display object[value], handling cases where it might be a table
-				local propertyValue = object[value];
-				if type(propertyValue) == "table" then
-					print("[readablekeys_table]key#=="..key..":: key==" .. tostring(value) .. ":: value==" .. tableToString(propertyValue));
-				else
-					print("[readablekeys_value]key#=="..key..":: value==" .. tostring(value) .. ":: value==" .. tostring(propertyValue));
-				end				
-
-			end
-		else
-			print ("[R]**readableKeys DNE");
-		end
-		if object.writableKeys then --check if writableKeys exists, if not don't loop on that property (else it will throw an error)
-			for key, value in pairs(object.writableKeys) do
-				print("[W]!!key=="..key.."::value=="..value.."::tostring(value)=="..tostring(value).."::");
-				--print("[W++]obj property=="..tostring(value)..":: value=="..obj[value]);
-
-				-- Display object[value], handling cases where it might be a table
-				local propertyValue = object[value];
-				local propertyValue = object[value];
-				if type(propertyValue) == "table" then
-					print("[writablekeys_table]key#=="..key..":: key==" .. tostring(value) .. ":: value==" .. tableToString(propertyValue));
-				else
-					print("[writablekeys_value]key#=="..key..":: value==" .. tostring(value) .. ":: value==" .. tostring(propertyValue));
-				end				
-				
-			end    
-		else
-		print ("[W]**writableKeys DNE");
-		end
-	end
-	if type (object)=="table" then
-		for key, value in pairs(object) do
-		print("[base]##key=="..key.."::tostring(value)=="..tostring(value).."::");
-		--print("##key=="..key.."::value=="..value.."::tostring(value)=="..tostring(value).."::");
-		end
-	else
-		print("[not table] value=="..tostring(object));
-	end
-end]]
-
 function startsWith(str, sub)
 	return string.sub(str, 1, string.len(sub)) == sub;
 end
@@ -298,7 +315,7 @@ end
 
 function WLturnPhases ()
 	--WLturnPhases = {'CardsWearOff', 'Purchase', 'Discards', 'OrderPriorityCards', 'SpyingCards', 'ReinforcementCards', 'Deploys', 'BombCards', 'EmergencyBlockadeCards', 'Airlift', 'Gift', 'Attacks', 'BlockadeCards', 'DiplomacyCards', 'SanctionCards', 'ReceiveCards', 'ReceiveGold'};
-	WLturnPhasesTable = {
+	local WLturnPhasesTable = {
 		['CardsWearOff'] = WL.TurnPhase.CardsWearOff,
 		['Purchase'] = WL.TurnPhase.Purchase,
 		['Discards'] = WL.TurnPhase.Discards,
@@ -318,6 +335,21 @@ function WLturnPhases ()
 		['ReceiveGold'] = WL.TurnPhase.ReceiveGold
 	};
 	return WLturnPhasesTable;
+end
+
+function WLplayerStates ()
+	local WLplayerStatesTable = {
+		[WL.GamePlayerState.Invited] = 'Invited',
+		[WL.GamePlayerState.Playing] = 'Playing',
+		[WL.GamePlayerState.Eliminated] = 'Eliminated',
+		[WL.GamePlayerState.Won] = 'Won',
+		[WL.GamePlayerState.Declined] = 'Declined',
+		[WL.GamePlayerState.RemovedByHost] = 'RemovedByHost',
+		[WL.GamePlayerState.SurrenderAccepted] = 'SurrenderAccepted',
+		[WL.GamePlayerState.Booted] = 'Booted',
+		[WL.GamePlayerState.EndedByVote] = 'EndedByVote'
+	};
+	return WLplayerStatesTable;
 end
 
 --given input parameter of the text friendly name value of the turn phase, return the WZ internal numeric value that represents that turn phase; this # is what must be assigned to orders to properly associate the turn phase of the order
@@ -370,7 +402,7 @@ end
 --return list of all cards defined in this game; includes custom cards
 --generate the list once, then store it in Mod.PublicGame.CardData, and retrieve it from there going forward
 function getDefinedCardList (game)
-    print ("[CARDS DEFINED IN THIS GAME]");
+    --print ("[CARDS DEFINED IN THIS GAME]");
     local count = 0;
     local cards = {};
 	local publicGameData = Mod.PublicGameData;
@@ -380,20 +412,20 @@ function getDefinedCardList (game)
 
 	--if (false) then --publicGameData.CardData.DefinedCards ~= nil) then
 	if (publicGameData.CardData.DefinedCards ~= nil) then
-		print ("[CARDS ALREADY DEFINED] don't regen list, just return existing table");
+		--print ("[CARDS ALREADY DEFINED] don't regen list, just return existing table");
 		return publicGameData.CardData.DefinedCards; --if the card data is already stored in publicGameData.CardData.definedCards, just return the list that has already been processed, don't regenerate it (it takes ~3.5 secs on standalone app so likely a longer, noticeable delay on web client)
 	else
-		print ("[CARDS NOT DEFINED] generate the list, store it in publicGameData.CardData.DefinedCards");
+		--print ("[CARDS NOT DEFINED] generate the list, store it in publicGameData.CardData.DefinedCards");
 		if (game==nil) then print ("game is nil"); return nil; end
 		if (game.Settings==nil) then print ("game.Settings is nil"); return nil; end
 		if (game.Settings.Cards==nil) then print ("game.Settings.Cards is nil"); return nil; end
-		print ("game==nil --> "..tostring (game==nil).."::");
+		--[[print ("game==nil --> "..tostring (game==nil).."::");
 		print ("game.Settings==nil --> "..tostring (game.Settings==nil).."::");
 		print ("game.Settings.Cards==nil --> "..tostring (game.Settings.Cards==nil).."::");
 		print ("Mod.PublicGameData == nil --> "..tostring (Mod.PublicGameData == nil));
 		print ("Mod.PublicGameData.CardData == nil --> "..tostring (Mod.PublicGameData.CardData == nil));
 		print ("Mod.PublicGameData.CardData.DefinedCards == nil --> "..tostring (Mod.PublicGameData.CardData.DefinedCards == nil));
-		print ("Mod.PublicGameData.CardData.CardPieceCardID == nil --> "..tostring (Mod.PublicGameData.CardData.CardPieceCardID == nil));
+		print ("Mod.PublicGameData.CardData.CardPieceCardID == nil --> "..tostring (Mod.PublicGameData.CardData.CardPieceCardID == nil));]]
 	
 		for cardID, cardConfig in pairs(game.Settings.Cards) do
 			local strCardName = getCardName_fromObject(cardConfig);
@@ -402,7 +434,7 @@ function getDefinedCardList (game)
 			count = count +1
 			--printObjectDetails (cardConfig, "cardConfig");
 		end
-		printObjectDetails (cards, "card", count .." defined cards total");
+		--printObjectDetails (cards, "card", count .." defined cards total");
 		return cards;
 	end
 end
@@ -411,16 +443,16 @@ end
 function getCardID (strCardNameToMatch, game)
 	--must have run getDefinedCardList first in order to populate Mod.PublicGameData.CardData
 	local cards={};
-	print ("[getCardID] match name=="..strCardNameToMatch.."::");
+	--[[print ("[getCardID] match name=="..strCardNameToMatch.."::");
 	print ("Mod.PublicGameData == nil --> "..tostring (Mod.PublicGameData == nil));
 	print ("Mod.PublicGameData.CardData == nil --> "..tostring (Mod.PublicGameData.CardData == nil));
 	print ("Mod.PublicGameData.CardData.DefinedCards == nil --> "..tostring (Mod.PublicGameData.CardData.DefinedCards == nil));
-	print ("Mod.PublicGameData.CardData.CardPieceCardID == nil --> "..tostring (Mod.PublicGameData.CardData.CardPieceCardID == nil));
+	print ("Mod.PublicGameData.CardData.CardPieceCardID == nil --> "..tostring (Mod.PublicGameData.CardData.CardPieceCardID == nil));]]
 	if (Mod.PublicGameData.CardData.DefinedCards == nil) then
-		print ("run function");
+		--print ("run function");
 		cards = getDefinedCardList (game);
 	else
-		print ("get from pgd");
+		--print ("get from pgd");
 		cards = Mod.PublicGameData.CardData.DefinedCards;
 	end
 
@@ -510,14 +542,14 @@ function initialize_CardData (game)
     Mod.PublicGameData = publicGameData; --save PublicGameData before calling getDefinedCardList
     publicGameData = Mod.PublicGameData;
 
-    print ("[init] 0pre");
+    --[[print ("[init] 0pre");
     print ("game==nil --> "..tostring (game==nil).."::");
     print ("game.Settings==nil --> "..tostring (game.Settings==nil).."::");
     print ("game.Settings.Cards==nil --> "..tostring (game.Settings.Cards==nil).."::");
     print ("Mod.PublicGameData == nil --> "..tostring (Mod.PublicGameData == nil));
     print ("Mod.PublicGameData.CardData == nil --> "..tostring (Mod.PublicGameData.CardData == nil));
     print ("Mod.PublicGameData.CardData.DefinedCards == nil --> "..tostring (Mod.PublicGameData.CardData.DefinedCards == nil));
-    print ("Mod.PublicGameData.CardData.CardPieceCardID == nil --> "..tostring (Mod.PublicGameData.CardData.CardPieceCardID == nil));
+    print ("Mod.PublicGameData.CardData.CardPieceCardID == nil --> "..tostring (Mod.PublicGameData.CardData.CardPieceCardID == nil));]]
 
     publicGameData.CardData.DefinedCards = getDefinedCardList (game);
     Mod.PublicGameData = publicGameData; --save PublicGameData before calling getDefinedCardList
@@ -527,7 +559,7 @@ function initialize_CardData (game)
     if (game.Settings==nil) then print ("game.Settings is nil"); return nil; end
     if (game.Settings.Cards==nil) then print ("game.Settings.Cards is nil"); return nil; end
 
-    print ("[init] pre");
+    --[[print ("[init] pre");
     print ("game==nil --> "..tostring (game==nil).."::");
     print ("game.Settings==nil --> "..tostring (game.Settings==nil).."::");
     print ("game.Settings.Cards==nil --> "..tostring (game.Settings.Cards==nil).."::");
@@ -535,9 +567,9 @@ function initialize_CardData (game)
     print ("Mod.PublicGameData.CardData == nil --> "..tostring (Mod.PublicGameData.CardData == nil));
     print ("Mod.PublicGameData.CardData.DefinedCards == nil --> "..tostring (Mod.PublicGameData.CardData.DefinedCards == nil));
     print ("Mod.PublicGameData.CardData.CardPieceCardID == nil --> "..tostring (Mod.PublicGameData.CardData.CardPieceCardID == nil));
-    print ("[init] post");
+    print ("[init] post");]]
 
-    print ("CardPiece=="..tostring(getCardID ("Card Piece")));
+    --print ("CardPiece=="..tostring(getCardID ("Card Piece")));
     publicGameData.CardData.CardPiecesCardID = tostring(getCardID ("Card Piece"));
     Mod.PublicGameData = publicGameData;
 
@@ -555,9 +587,9 @@ function initialize_CardData (game)
         print ("11----------------------");
     end]]
     
-    print ("[CardPiece CardID] Mod.Settings.CardPiecesCardID=="..tostring (Mod.Settings.CardPiecesCardID));
+    --[[print ("[CardPiece CardID] Mod.Settings.CardPiecesCardID=="..tostring (Mod.Settings.CardPiecesCardID));
     print ("[CardPiece CardID] Mod.PublicGameData.CardData.CardPiecesCardID=="..tostring (Mod.PublicGameData.CardData.CardPiecesCardID));
-    print ("12----------------------");
+    print ("12----------------------");]]
 
     --Mod.PublicGameData = publicGameData;
 end

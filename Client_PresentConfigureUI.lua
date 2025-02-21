@@ -9,8 +9,55 @@ Client_GameRefresh (Client_GameRefresh.lua) - whenever the client gets data abou
 Client_PresentCommercePurchaseUI (Client_PresentCommercePurchaseUI.lua) - player clicks the "Build" button (Commerce game)
 
 TODOs:
+- TEST GAME: https://www.warzone.com/MultiPlayer?GameID=40398835
+	- Tested and working:
+		- Nuke - working fine, including showing that Nuke doesn't affect Specials
+		- Card Block, Card Pieces
+		- Pestilence
+		- Neutralize - works properly, confirmed that stuff reverts back to normal state after X turns
+		- Deneutralize - tested Deneutralize on natural neutrals & neutralized neutrals, have taken over specials including a Commander
+		- Isolation - confirmed it's blocking movements/airlifts & appropriate messages, expires properly, removes the special unit visual
+		- Quicksand - confirmed it's blocking movements/airlifts & appropriate messages, expires properly, removes the special unit visual
+		- Tornados - Idle power structure shows up; confirm it disappears; damage is OK, confirmed it ends at proper time
+		- Earthquake - no visual; damage is OK, confirmed is ends at proper time
+	- put the printObject... line of code that was causing the airlift issue on mobile only (actually maybe standalone too but never web client) & send to Fizzer
+	- Somewhat tested:
+		- Shields - confirm that no damage is taken by units + any damage to attackers
+		- Monolith - confirm that it doesn't protect units but protects territory from being taken
+	- Change back after TEST GAME is complete: ~line 308 in Server_AdvanceTurn.lua:
+						--result.AttackingArmiesKilled = WL.Armies.Create(math.floor(result.AttackingArmiesKilled.NumArmies*Mod.Settings.QuicksandAttackDamageGivenModifier+0.5));
+						--result.DefendingArmiesKilled = WL.Armies.Create(math.floor(result.DefendingArmiesKilled.NumArmies*Mod.Settings.QuicksandDefendDamageTakenModifier+0.5));
+						result.AttackingArmiesKilled = WL.Armies.Create(math.floor(result.AttackingArmiesKilled.NumArmies*0.5+0.5));
+						result.DefendingArmiesKilled = WL.Armies.Create(math.floor(result.DefendingArmiesKilled.NumArmies*1.5+0.5));
+						--&&& change me back to the 1st two lines! this is for THE TESTING GAME ONLY b/c the original values are 0's!
+
+- Implement NOW:
+	- add "on <location name>" for messages like "Shield expired", change to "Shield expired on North Brazil"; the camera focus isn't always clear enough
+	- captured Quicksand territories lose the Special Unit indicator; recreate it; do it as part of Server_TurnAdvance_Order, not @ _End, so it comes back right away and looks accurate for the remainder of the turn
+
 - issues to resolve before publishing:
+	- is UI_factions.lua actually required? isn't it just essentially calling a function to call the UI.functions of the same type? just a 1-step unnecessary addition each time?
+	- fix function IsPlayerActive - always seems to return false
+	- change Pestilence alert from UI.Alert to a regular popup with "I understand/I'm ready (will popup a notification on Turn Commit but otherwise will leave you alone and not nag-warn you again)" button & "Remind me again in 10 mins" button
+	- erase the pending Pestilence order from eliminated players (but not from players that went AI - don't let them get out of it that easily)
+	--*** rename these (after TEST GAME w/MP/Rex is done) to QuicksandDefenderDamageTakenModifier & QuicksandAttackerDamageGivenModifier so it's clear how it applies to the 'result' of an order
+		--Mod.Settings.QuicksandDefendDamageTakenModifier = 1.5; --increase damage taken by defender 50% while in quicksand
+		--Mod.Settings.QuicksandAttackDamageGivenModifier = 0.5; --reduce damage given by defender 50% while in quicksand
+	- desc for Earthquake - add damage to message
+	- Quicksand - message "0x damage" - fix the desc
+	- nuke - damage rounding down? 10 taking 25%+5 went to 3 which means 2.5 rounded to 2, then +5=7 to get to 3
 	- Isolation move skip - use jumplocation to show the territory isolation area
+	- Neutralize special - isn't disappearing @ end of duration
+	- Pestilence - actually just delay the PlayCard operation until the ACTUAL HIT turn; do the warning in advance, play the card on the appropriate turn to align with Active Cards
+	- Isolation - after playing, dialog stays open - close it down!
+	- Quicksand - for the combat, instead of doing a full manual attack, perhaps can just subtract x% damage from the attacking units & add y% damage to the defending units on the combat record
+	- tornados - multiple tornados on same territory create multiple 'power' structures, but (A) don't do multiple damage hits, (B) only 1 structure is removed @ end; this is b/c it's put into a table by element of that territory, so each overwrites each other to make just 1 entry, hmmmm
+	- add Card Hold - restrict # of cards that can be held for X turns
+	- add Conceal - cast fog (light?) on a territory (bonus?) to everyone but self
+	- add Phantom - unit spawns for X turns that clouds vision to others of anything on the same territory it resides on
+	- add Portal/Nydus Canal - create a structure (which building?) for X turns  (or permanent? or make it so territory owner can demolish it [takes 1 turn to do so]) that enables units to travel from 1 portal to another
+	- create table/routines to auto-remove special units after X turns; not specific to any card, any card can use it
+		- also ensures that if the special is removed @ end of turn, it is replaced
 	- Isolation move skip - suppress 1st skip order; no value in it
 	- Pestilence - in player selection list, remove players that have been casted on BY YOU already this turn; can't control by others (even if they put it in, they may cancel it)
 	- @ end of turn, check if the territories for Isolation/Quicksand are missing special unit visual aids and if so, recreate them
@@ -345,12 +392,14 @@ function quicksandCheckboxClicked()
         QuicksandBlockExitFromTerritory = CreateCheckBox(horzQuicksandBlockExit).SetText("Block exit from territory").SetIsChecked(Mod.Settings.QuicksandBlockExitFromTerritory).SetInteractable(true);
         
 		local horzQuicksandDefendMod = CreateHorz(UIcontainer);
-        CreateLabel(horzQuicksandDefendMod).SetText("FUTURE IMPLEMENTATION - Defend damage modifier: ");
+        CreateLabel(horzQuicksandDefendMod).SetText("Defender damage modifier: ");
         QuicksandDefendDamageTakenModifier = CreateNumberInputField(horzQuicksandDefendMod).SetSliderMinValue(0.1).SetSliderMaxValue(2.0).SetValue(Mod.Settings.QuicksandDefendDamageTakenModifier).SetWholeNumbers(false).SetInteractable(true);
+        CreateLabel(UIcontainer).SetText("(Multiplier for the damage to be sustained by defending armies when in quicksand; use 1.0 for no change; default is 1.5 for a 50% increase in damage to defenders)");
         
 		local horzQuicksandAttackMod = CreateHorz(UIcontainer);
-        CreateLabel(horzQuicksandAttackMod).SetText("FUTURE IMPLEMENTATION - Attack damage modifier: ");
+        CreateLabel(horzQuicksandAttackMod).SetText("Attack damage modifier: ");
         QuicksandAttackDamageGivenModifier = CreateNumberInputField(horzQuicksandAttackMod).SetSliderMinValue(0.1).SetSliderMaxValue(2.0).SetValue(Mod.Settings.QuicksandAttackDamageGivenModifier).SetWholeNumbers(false).SetInteractable(true);
+        CreateLabel(UIcontainer).SetText("(Multiplier for the damage to be sustained by attacking armies when in quicksand; use 1.0 for no change; default is 0.5 for a 50% decrease in damage to attackers)");
         
 		local horzQuicksandPiecesNeeded = CreateHorz(UIcontainer);
         CreateLabel(horzQuicksandPiecesNeeded).SetText("Number of pieces to divide the card into: ");

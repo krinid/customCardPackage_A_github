@@ -1,10 +1,9 @@
 require("UI_Events");
 require("utilities");
 
+--used only for testing purposes, this menu has no in-game functional purpose at this point in time
 function Client_PresentMenuUI(rootParent, setMaxSize, setScrollable, game, close)
-    --used only for testing purposes
-    --original Dabo menu has been deprecated, as it no longer required to use the cards b/c they are actual WZ cards now that can be played normally via the built-in card play mechanism w/o having to use the game/mod menu
-
+	--be vigilant of referencing clientGame.Us when it ==nil for spectators, b/c they CAN initiate this function
     Game = game; --global variable to use in other functions in this code 
 
     if game == nil then 		print('ClientGame is nil'); 	end
@@ -13,16 +12,23 @@ function Client_PresentMenuUI(rootParent, setMaxSize, setScrollable, game, close
 	if game.Us == nil then 		print('ClientGame.Us is nil'); 	end
 	if game.Settings == nil then 		print('ClientGame.Settings is nil'); 	end
 	if game.Settings.Cards == nil then 		print('ClientGame.Settings.Cards is nil'); 	end
-	--if game.game == nil then 		print('ClientGame.game is nil'); 	end
-	--if game.game.Settings == nil then 		print('ClientGame.game.Settings is nil'); 	end
-	--if game.game.Settings.Cards == nil then 		print('ClientGame.game.Settings.Cards is nil'); 	end
 
     MenuWindow = rootParent;
-    TopLabel = CreateLabel (rootParent).SetFlexibleWidth(1).SetText ("Used for testing purposes only; this will be removed before releasing to public");
---	local MainModUI = CreateWindow(CreateVert(GlobalRoot).SetFlexibleWidth(1));
---	CreateLabel(MainModUI).SetText("Select which cards to enable:").SetColor("#FFFFFF");
+	TopLabel = CreateLabel (MenuWindow).SetFlexibleWidth(1).SetText ("Used for testing purposes only; this will be removed before releasing to public\n\n");
+    TopLabel.SetText (TopLabel.GetText() .. ("Server time: "..game.Game.ServerTime));
+	if (game.Us~=nil) then --a player in the game
+		TopLabel.SetText (TopLabel.GetText() .. ("\n\nClient player "..game.Us.ID .."/"..toPlayerName (game.Us.ID, game)..", State: "..tostring(game.Game.Players[game.Us.ID].State).."/"..tostring(WLplayerStates ()[game.Game.Players[game.Us.ID].State]).. ", IsActive: "..tostring(game.Game.Players[game.Us.ID].State == WL.GamePlayerState.Playing)));
+	else
+		--client local player is a Spectator, don't reference game.Us which ==nil
+		TopLabel.SetText (TopLabel.GetText() .. "\n\nClient player is Spectator");
+	end
 
---[[    Server_GameCustomMessage (Server_GameCustomMessage.lua)
+	TopLabel.SetText (TopLabel.GetText() .. ("\n\nPlayers in the game:"));
+	for k,v in pairs (game.Game.Players) do
+		TopLabel.SetText (TopLabel.GetText() .. ("\nPlayer "..k .."/"..toPlayerName (k, game)..", State: "..tostring(v.State).."/"..tostring(WLplayerStates ()[v.State]).. ", IsActive: "..tostring(game.Game.Players[k].State == WL.GamePlayerState.Playing)));
+	end
+
+	--[[    Server_GameCustomMessage (Server_GameCustomMessage.lua)
 Called whenever your mod calls ClientGame.SendGameCustomMessage. This gives mods a way to communicate between the client and server outside of a turn advancing. Note that if a mod changes Mod.PublicGameData or Mod.PlayerGameData, the clients that can see those changes and have the game open will automatically receive a refresh event with the updated data, so this message can also be used to push data from the server to clients.
 Mod security should be applied when working with this Hook
 Arguments:
@@ -31,135 +37,106 @@ PlayerID: The ID of the player who invoked this call.
 payload: The data passed as the payload parameter to SendGameCustomMessage. Must be a lua table.
 setReturn: Optionally, a function that sets what data will be returned back to the client. If you wish to return data, pass a table as the sole argument to this function. Not calling this function will result in an empty table being returned.]]
 
+	--this shows all Global Functions! wow
+	--[[for i, v in pairs(_G) do
+		print(i, v);
+	end]]
+
     showDefinedCards (game);
     showCardBlockData ();
     showIsolationData ();
     showQuicksandData ();
-    showEarthquakeData ();    
+    showEarthquakeData ();
+    showPestilenceData ();
+	--showNeutralizeData (); --can't do this b/c NeutralizeData is in PrivateGameData --> can't view in Client hook
 end
 
+--not actually used; but keep it around as an example of how to use/return data using clientGame.SendGameCustomMessage
 function PresentMenuUI_callBack (table)
-    --printObjectDetails (value, Game);
     for k,v in pairs (table) do
         print ("[C_PMUI] "..k,v);
         CreateLabel (MenuWindow).SetText ("[C_PMUI] "..k.."/"..v);
-    end 
-end 
+    end
+end
+
+function showNeutralizeData ()
+    CreateLabel (MenuWindow).SetText ("\nNeutralize data:");
+    CreateLabel (MenuWindow).SetText ("# records==".. tablelength (Mod.PrivateGameData.NeutralizeData));
+    for k,v in pairs (Mod.PrivateGameData.NeutralizeData) do
+        printObjectDetails (v,"record", "NeutralizeData");
+        CreateLabel (MenuWindow).SetText (tostring(k)..", " ..tostring(v.territory)..", " ..tostring(v.castingPlayer)..", "..tostring(v.impactedTerritoryOwnerID)..", " .. tostring(v.turnNumber_NeutralizationExpires), ", ".. tostring(v.specialUnitID));
+    end
+	--for reference: local neutralizeDataRecord = {territory=targetTerritoryID, castingPlayer=castingPlayerID, territoryOwner=impactedTerritoryOwnerID, turnNumberToRevert=turnNumber_NeutralizationExpires, specialUnitID=specialUnit_Neutralize.ID};
+end
 
 function showEarthquakeData ()
-    CreateLabel (MenuWindow).SetText ("\n\nEarthquake data:");
+    CreateLabel (MenuWindow).SetText ("\nEarthquake data:");
     CreateLabel (MenuWindow).SetText ("# records==".. tablelength (Mod.PublicGameData.EarthquakeData));
     for k,v in pairs (Mod.PublicGameData.EarthquakeData) do
         printObjectDetails (v,"record", "EarthquakeData");
         CreateLabel (MenuWindow).SetText (tostring(k)..", " ..tostring(v.targetBonus)..", " ..tostring(v.castingPlayer)..", "..tostring(v.turnNumberEarthquakeEnds));
     end
-    --publicGameData.EarthquakeData[targetBonusID] = {targetBonus = targetBonusID, castingPlayer = gameOrder.PlayerID, turnNumberEarthquakeEnds = turnNumber_EarthquakeExpires};
+    --for reference: publicGameData.EarthquakeData[targetBonusID] = {targetBonus = targetBonusID, castingPlayer = gameOrder.PlayerID, turnNumberEarthquakeEnds = turnNumber_EarthquakeExpires};
 end
 
 function showCardBlockData ()
-    CreateLabel (MenuWindow).SetText ("\n\nCard Block data:");
+    CreateLabel (MenuWindow).SetText ("\nCard Block data:");
     CreateLabel (MenuWindow).SetText ("# records==".. tablelength (Mod.PublicGameData.CardBlockData));
     for k,v in pairs (Mod.PublicGameData.CardBlockData) do
         printObjectDetails (v,"record", "CardBlockData");
         CreateLabel (MenuWindow).SetText (k..", " ..v.castingPlayer..", "..v.turnNumberBlockEnds);
-        --local record = {targetPlayer = targetPlayerID, castingPlayer = gameOrder.PlayerID, turnNumberBlockEnds = turnNumber_CardBlockExpires}; --create record to save data on impacted player, casting player & end turn of Card Block impact
+        --for reference: local record = {targetPlayer = targetPlayerID, castingPlayer = gameOrder.PlayerID, turnNumberBlockEnds = turnNumber_CardBlockExpires}; --create record to save data on impacted player, casting player & end turn of Card Block impact
     end
-end 
+end
 
 function showQuicksandData ()
-    CreateLabel (MenuWindow).SetText ("\n\nQuicksand data:");
+    CreateLabel (MenuWindow).SetText ("\nQuicksand data:");
     CreateLabel (MenuWindow).SetText ("# records==".. tablelength (Mod.PublicGameData.QuicksandData));
-    
-    if (tablelength (Mod.PublicGameData.QuicksandData)) == 0 then CreateLabel (MenuWindow).SetText ("QuicksandData is empty"); return; end
+    CreateLabel (MenuWindow).SetText ("AttackerDamageTakenModifier: "..Mod.Settings.QuicksandAttackDamageGivenModifier);
+    CreateLabel (MenuWindow).SetText ("DefenderDamageTakenModifier: "..Mod.Settings.QuicksandDefendDamageTakenModifier);
+
+	if (tablelength (Mod.PublicGameData.QuicksandData)) == 0 then CreateLabel (MenuWindow).SetText ("QuicksandData is empty"); return; end
 
     for k,v in pairs (Mod.PublicGameData.QuicksandData) do
         printObjectDetails (v,"record", "QuicksandData");
         CreateLabel (MenuWindow).SetText (k..", " ..v.territory.."/"..getTerritoryName (v.territory, Game) ..", "..v.castingPlayer.. ", "..v.territoryOwner.. ", ".. v.turnNumberQuicksandEnds);
         --CreateLabel (MenuWindow).SetText (k..", " ..v.territory.."/"..getTerritoryName (v.territory, game)..", "..v.castingPlayer.. ", "..v.territoryOwner.. ", ".. v.turnNumberQuicksandEnds);
-        --local QuicksandDataRecord = {territory=targetTerritoryID, castingPlayer=castingPlayerID, territoryOwner=impactedTerritoryOwnerID, turnNumberQuicksandEnds=turnNumber_QuicksandExpires, specialUnitID=specialUnit_Quicksand.ID};---&&&
+        --for reference: local QuicksandDataRecord = {territory=targetTerritoryID, castingPlayer=castingPlayerID, territoryOwner=impactedTerritoryOwnerID, turnNumberQuicksandEnds=turnNumber_QuicksandExpires, specialUnitID=specialUnit_Quicksand.ID};---&&&
     end
-end 
+end
+
+function showPestilenceData ()
+    CreateLabel (MenuWindow).SetText ("\nPestilence data:");
+    CreateLabel (MenuWindow).SetText ("# records==".. tablelength (Mod.PublicGameData.PestilenceData));
+
+	if (tablelength (Mod.PublicGameData.PestilenceData)) == 0 then CreateLabel (MenuWindow).SetText ("PestilenceData is empty"); return; end
+
+    for k,v in pairs (Mod.PublicGameData.PestilenceData) do
+        --printObjectDetails (v,"record", "PestilenceData");
+        CreateLabel (MenuWindow).SetText ("["..k.."] target " ..v.targetPlayer.."/"..toPlayerName (v.targetPlayer, Game)..", caster "..v.castingPlayer.."/"..toPlayerName (v.castingPlayer, Game)..", warning T"..v.PestilenceWarningTurn..", Start T"..v.PestilenceStartTurn..", End T"..v.PestilenceEndTurn);
+		--for reference: publicGameData.PestilenceData [pestilenceTarget_playerID] = {targetPlayer=pestilenceTarget_playerID, castingPlayer=gameOrder.PlayerID, PestilenceWarningTurn=PestilenceWarningTurn, PestilenceStartTurn=PestilenceStartTurn, PestilenceEndTurn=PestilenceEndTurn};
+
+    end
+end
 
 function showIsolationData ()
-    CreateLabel (MenuWindow).SetText ("\n\nIsolation data:");
+    CreateLabel (MenuWindow).SetText ("\nIsolation data:");
     CreateLabel (MenuWindow).SetText ("# records==".. tablelength (Mod.PublicGameData.IsolationData));
-    
+
+	CreateLabel (MenuWindow).SetText ("Quicksanded territories:");
     if (tablelength (Mod.PublicGameData.IsolationData)) == 0 then CreateLabel (MenuWindow).SetText ("IsolationData is empty"); return; end
 
     for k,v in pairs (Mod.PublicGameData.IsolationData) do
         printObjectDetails (v,"record", "IsolationData");
         --CreateLabel (MenuWindow).SetText (k..", " ..v.territory.."/".."?"..", "..v.castingPlayer.. ", "..v.territoryOwner.. ", ".. v.turnNumberIsolationEnds);
         CreateLabel (MenuWindow).SetText (k..", " ..v.territory.."/"..getTerritoryName (v.territory, Game)..", "..v.castingPlayer.. ", "..v.territoryOwner.. ", ".. v.turnNumberIsolationEnds);
-        --local IsolationDataRecord = {territory=targetTerritoryID, castingPlayer=castingPlayerID, territoryOwner=impactedTerritoryOwnerID, turnNumberIsolationEnds=turnNumber_IsolationExpires, specialUnitID=specialUnit_Isolation.ID};---&&&
+        --for reference: local IsolationDataRecord = {territory=targetTerritoryID, castingPlayer=castingPlayerID, territoryOwner=impactedTerritoryOwnerID, turnNumberIsolationEnds=turnNumber_IsolationExpires, specialUnitID=specialUnit_Isolation.ID};---&&&
     end
-end 
-
-function showCardBlockData_Nope ()
-        CreateLabel (MenuWindow).SetText ("[C_PMUI] "..k.."/"..v);
-
-    local publicGameData = Mod.PublicGameData;
-	local targetPlayerID = gameOrder.PlayerID;
-
-	--if CardBlock isn't in use, just return false
-	if (Mod.Settings.CardBlockEnabled == false) then return false; end
-
-	--if there is no CardBlock data, just return false
-	local numCardBlockDataRecords = tablelength (publicGameData.CardBlockData);
-	if (numCardBlockDataRecords == 0) then return false; end
-
-	--check if order is a card play (could be regular or custom card play)
-	if (string.find (gameOrder.proxyType, "GameOrderPlayCard") ~= nil) then
-		--printObjectDetails (gameOrder, "[ORDER] card play", "[Server_TurnAdvance_Order]");
-		print ("[ORDER::CARD PLAY] player=="..gameOrder.PlayerID..", proxyType=="..gameOrder.proxyType.."::_____________________");
-
-		--check if player this order is for is impacted by Card Block
-		if (publicGameData.CardBlockData[targetPlayerID] == nil) then
-			--no CardBlock data exists, so don't check, just return with don't block result (return value of false)
-			print ("[CARD BLOCK DATA dne]");
-			return false;
-		else
-			--CardBlock data exists, this user is being CardBlocked! Check if the order is a card play, and if so (and it's not a Reinf card), skip the order
-			print ("[CARD BLOCK DATA exists]");
-
-			if (gameOrder.proxyType == "GameOrderPlayCardReinforcement") then
-				--don't block Reinfs b/c the armies are already deployed, so blocking the card just gives the card back and the armies stay deployed
-				--ie: do nothing, let it process normally
-					print ("[CARD] Reinf card play - don't block");
-					return false;
-			else
-				--skip order, as it is a card play (that isn't Reinf) by a player impacted by CardBlock
-				printObjectDetails (publicGameData.CardBlockData, "CardBlockData", "in skip routine");
-
-				--block all other card plays (skip the order)
-				local strCardType = tostring (gameOrder.proxyType:match ("^GameOrderPlayCard(.*)"));
-				local strCardName = strCardType; --this will be accurate for regular cards; for custom cards this will show as "custom", and need to get the card name from ModData (and hope all modders do this?)
-
-				--display appropriate output message based on whether card is a regular card or a custom card
-				if (strCardType=="Custom") then
-					print ("[CARD PLAY BLOCKED] custom card=="..gameOrder.ModData.."::");
-					local modDataContent = split(gameOrder.ModData, "|");
-					cardOrderContentDetails = nil;
-					strCardName = modDataContent[1]; --1st component of ModData up to "|" is the card name
-				else
-					--regular card, nothing special to do, just skip the card
-					print ("[CARD PLAY BLOCKED] regular card==" .. strCardName);
-				end
-				
-				--
-				strCardBlockSkipOrder_Message = "Skipping order to play ".. strCardName.. " card as "..toPlayerName (gameOrder.PlayerID, game).." is impacted by Card Block.";
-				print ("[CARD BLOCK] - skipOrder - playerID="..gameOrder.PlayerID.. ", "..strCardBlockSkipOrder_Message);
-				addOrder(WL.GameOrderEvent.Create(gameOrder.PlayerID, strCardBlockSkipOrder_Message, {}, {},{}));
-				skip (WL.ModOrderControl.Skip); --skip this order
-				return true;
-			end
-		end
-	end
-	return false; --if it wasn't flagged by anything above, then it's either not a card play or the player this order is for isn't affected by a CardBlock operation
 end
 
 function showDefinedCards (game)
-    print ("[PresentMenuUI] CARD OVERVIEW");
-    game.SendGameCustomMessage ("[waiting for server response]", {action="initialize_CardData"}, PresentMenuUI_callBack);
+    --print ("[PresentMenuUI] CARD OVERVIEW");
+    --game.SendGameCustomMessage ("[waiting for server response]", {action="initialize_CardData"}, PresentMenuUI_callBack);
 
     local cards = getDefinedCardList (game);
     local CardPiecesCardID = Mod.PublicGameData.CardData.CardPiecesCardID;
@@ -168,25 +145,8 @@ function showDefinedCards (game)
     for k,v in pairs (cards) do
         strText = strText .. "\n"..v.." / ["..k.."]";
     end
-    strText = TopLabel.GetText() .. "\n\nDEFINED CARDS:"..strText .. "\n\nCardPieceCardID=="..CardPiecesCardID.."\n";
+    strText = TopLabel.GetText() .. "\n\nDEFINED CARDS:"..strText .. "\n\nCardPieceCardID=="..CardPiecesCardID;
     TopLabel.SetText (strText.."\n");
-
-    --[[for k,v in pairs (cards) do
-        print ("[C_PMUI] "..k,v);
-        CreateLabel (MenuWindow).SetText ("[C_PMUI] "..k.."/"..v);
-    end]]
-
-    --[[local strText = "";
-    for k,v in pairs (Mod.PublicGameData.CardData.DefinedCards) do
-        strText = strText .. "\n"..v.." ["..k.."]";
-    end
-    strText = TopLabel.GetText() .. "\n\nDEFINED CARDS:"..strText .. "\n\nCardPieceCardID=="..Mod.PublicGameData.CardData.CardPiecesCardID.."\n";
-    TopLabel.SetText (strText.."\n");
-
-    for k,v in pairs (Mod.PublicGameData.CardData.DefinedCards) do
-        print ("[C_PMUI] "..k,v);
-        CreateLabel (MenuWindow).SetText ("[C_PMUI] "..k.."/"..v);
-    end ]]
 end
 
 

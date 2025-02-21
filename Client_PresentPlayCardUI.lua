@@ -5,7 +5,9 @@ require("UI_Events");
 function Client_PresentPlayCardUI(game, cardInstance, playCard)
     --when dealing with multiple cards in a single mod, observe game.Settings.Cards[cardInstance.CardID].Name to identify which one was played
     Game = game; --make client game object available globally
-    
+
+	if (game.Us == nil) then return; end --technically not required b/c spectators could never initiative this function (requires playing a Card, which they can't do b/c they're not in the game)
+
     strPlayerName_cardPlayer = game.Us.DisplayName(nil, false);
     intPlayerID_cardPlayer = game.Us.PlayerID;
     PrintProxyInfo (cardInstance);
@@ -148,9 +150,6 @@ end
 
 function play_cardPiece_card (game, cardInstance, playCard)
     local publicGameData = Mod.PublicGameData;
-    local cards = getDefinedCardList (game);
-    --delme^^^
-
     local cards = nil;
     CardPieceCardID = cardInstance.CardID; --ensure player doesn't redeem Card Piece cards/pieces; esp if redeem amount is >1 whole card, this results in receiving infinite turn-over-turn card/piece quantities
 

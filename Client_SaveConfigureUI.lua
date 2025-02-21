@@ -114,7 +114,7 @@ function createCards_newCards(alert, addCard);
         print ("START create new cards");
 
         if Mod.Settings.ShieldEnabled == true then
-                local strShieldDesc = "A special unit that does no damage but can't be killed and absorbs all incoming regular damage to the territory it resides on. A territory cannot be captured while a Shield unit resides on it. ";
+                local strShieldDesc = "A special immovable unit deployed to a territory that does no damage but can't be killed and absorbs all incoming regular damage to the territory it resides on. A territory cannot be captured while a Shield unit resides on it. ";
                 if (Mod.Settings.ShieldDuration == -1) then
                     strShieldDesc = strShieldDesc .. "Shields never expire.";
                 else
@@ -125,7 +125,7 @@ function createCards_newCards(alert, addCard);
         end
 
         if Mod.Settings.MonolithEnabled == true then
-                local strMonolithDesc = "Create a special unit that does no damage but cannot be killed. A territory cannot be captured while a Monolith unit resides on it, but the Monolith does not protect any units that are on the territory. All the units residing on the territory can be normally attacked and destroyed, and the Monolith will remain.";
+                local strMonolithDesc = "A special immovable unit deployed to a territory that does no damage but cannot be killed. A territory cannot be captured while a Monolith unit resides on it, but the Monolith does not protect any units that are on the territory. All the units residing on the territory can be normally attacked and destroyed, and the Monolith will remain.";
                 if (Mod.Settings.MonolithDuration == -1) then
                         strMonolithDesc = strMonolithDesc .. "Monoliths never expire.";
                 else
@@ -213,7 +213,7 @@ function createCards_newCards(alert, addCard);
                 else
                         strQuicksandDesc = strQuicksandDesc .. "for " .. Mod.Settings.QuicksandDuration .. " turn" .. plural(Mod.Settings.QuicksandDuration) .. ".";
                 end
-                strQuicksandDesc = strQuicksandDesc .. "\n\nAttacks and transfers into the territory can still occur, but none can be executed from the territory while quicksand remains active. FUTURE IMPLEMENTATION: Units caught in quicksand also do "..Mod.Settings.QuicksandAttackDamageGivenModifier.."x less damage to attackers, and sustain "..Mod.Settings.QuicksandDefendDamageTakenModifier.."x more damage when attacked."; --&&& update these numbers
+                strQuicksandDesc = strQuicksandDesc .. "\n\nAttacks and transfers into the territory can still occur, but none can be executed from the territory while quicksand remains active. Units caught in quicksand do "..Mod.Settings.QuicksandAttackDamageGivenModifier.."x less damage to attackers, and defending armies sustain "..Mod.Settings.QuicksandDefendDamageTakenModifier.."x more damage when attacked.";
                 Mod.Settings.QuicksandCardID = addCard("Quicksand", strQuicksandDesc, "quicksand_v3_130x180.png", Mod.Settings.QuicksandPiecesNeeded, Mod.Settings.QuicksandPiecesPerTurn, Mod.Settings.QuicksandStartPieces, Mod.Settings.QuicksandCardWeight, Mod.Settings.QuicksandDuration);
         end
 
