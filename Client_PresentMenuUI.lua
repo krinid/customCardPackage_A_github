@@ -23,6 +23,8 @@ function Client_PresentMenuUI(rootParent, setMaxSize, setScrollable, game, close
 		TopLabel.SetText (TopLabel.GetText() .. "\n\nClient player is Spectator");
 	end
 
+	TopLabel.SetText (TopLabel.GetText() .. ("\n\nGame host: "..game.Settings.StartedBy.."/".. toPlayerName(game.Settings.StartedBy, game)));
+
 	TopLabel.SetText (TopLabel.GetText() .. ("\n\nPlayers in the game:"));
 	for k,v in pairs (game.Game.Players) do
 		local strPlayerIsHost = "";
